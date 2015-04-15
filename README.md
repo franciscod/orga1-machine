@@ -4,9 +4,13 @@ acercando la máquina de orga 1 a los bits
 http://www.dc.uba.ar/materias/oc1/2015/c1
 
 ## anda?
-	python sim.py etc/p1.hex
+	python -i sim.py etc/p1.hex
 
+	# fetch, decode, exec
 	>>> maq.step()
+
+	# corre y corre
+	>>> maq.run()
 
 ---
 
