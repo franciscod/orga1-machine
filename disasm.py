@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import print_function
+
 import sys
 from machine import Orga1Machine
 from insns import InvalidInstruction
