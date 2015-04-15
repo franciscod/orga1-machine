@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from storage import Word, Memory, Register
-from insns import (AddressingModes, UnknownInstruction, InvalidInstruction,
+from insns import (AddressingModes, Operand, UnknownInstruction, InvalidInstruction,
     BinaryInsn, UnaryDestInsn, UnarySrcInsn, NullaryInsn, UnknownCondJmp, CondJmpInsn,
     Mov, Add, Sub, And, Or, Cmp, Addc,
     Neg, Not,
@@ -64,8 +64,11 @@ class Orga1Machine(object):
         self.V = 0
 
     def run(self):
-        while True:
-            self.step()
+        try:
+            while True:
+                self.step()
+        except InvalidInstruction:
+            print ("end of execution")
 
     def step(self):
         w = self._fetch()
@@ -92,32 +95,32 @@ class Orga1Machine(object):
             return issubclass(insn, superclass)
 
         if got(BinaryInsn):
-            dam, dest = self._get_dest_operand(word)
-            _, src = self._get_src_operand(word)
+            dest_op = self._get_dest_operand(word)
+            src_op = self._get_src_operand(word)
 
-            if dam == AddressingModes.IMMEDIATE and not got(Cmp):
+            if dest_op.addr_mode == AddressingModes.IMMEDIATE and not got(Cmp):
                 raise InvalidInstruction(word)
 
-            return insn(dest, src)
+            return insn(dest_op, src_op)
 
         if got(UnaryDestInsn):
             if word.get_bits(6, 10) != 0:
                 raise InvalidInstruction(word)
 
-            dam, dest = self._get_dest_operand(word)
+            dest_op = self._get_dest_operand(word)
 
-            if dam == AddressingModes.IMMEDIATE:
+            if dest_op.addr_mode == AddressingModes.IMMEDIATE:
                 raise InvalidInstruction(word)
 
-            return insn(dest)
+            return insn(dest_op)
 
         if got(UnarySrcInsn):
             if word.get_bits(6, 4) != 0:
                 raise InvalidInstruction(word)
 
-            _, src = self._get_src_operand(word)
+            src_op = self._get_src_operand(word)
 
-            return insn(src)
+            return insn(src_op)
 
         if got(NullaryInsn):
             if word.get_bits(12, 4) != 0:
@@ -126,19 +129,16 @@ class Orga1Machine(object):
             return insn()
 
         if got(UnknownCondJmp):
-            return self._decode_condjmp(word)
+            subopcode = word.get_bits(4, 4)
+
+            if not subopcode in self.CONDJMPINSNS:
+                raise InvalidInstruction(word)
+
+            condjmpinsn = self.CONDJMPINSNS[subopcode]
+
+            return condjmpinsn(Word(word.get_bits(8, 8), 8).extend_sign(16))
 
         raise UnknownInstruction(word)
-
-    def _decode_condjmp(self, word):
-        subopcode = word.get_bits(4, 4)
-
-        if not subopcode in self.CONDJMPINSNS:
-            raise InvalidInstruction(word)
-
-        insn = self.CONDJMPINSNS[subopcode]
-
-        return insn(Word(word.get_bits(8, 8), 8).extend_sign(16))
 
     def _get_dest_operand(self, word):
         return self._get_abs_operand(word, 0)
@@ -146,31 +146,15 @@ class Orga1Machine(object):
     def _get_src_operand(self, word):
         return self._get_abs_operand(word, 6)
 
-    def _get_abs_operand(self, word, o):
-        addr_mode = word.get_bits(3, o + 4)
-        return addr_mode, self._get_operand(addr_mode, word.get_bits(3, o + 7))
+    def _get_abs_operand(self, word, offset):
+        addr_mode = word.get_bits(3, offset + 4)
+        register_num = word.get_bits(3, offset + 7)
+        constant = None
 
-    def _get_operand(self, addr_mode, register_num=None):
+        if addr_mode in (AddressingModes.IMMEDIATE, AddressingModes.DIRECT, AddressingModes.INDIRECT, AddressingModes.INDEXED):
+            constant = self._fetch()
 
-        if addr_mode == AddressingModes.IMMEDIATE:
-            return self._fetch()
-
-        if addr_mode == AddressingModes.DIRECT:
-            return self.M.get(self._fetch())
-
-        if addr_mode == AddressingModes.INDIRECT:
-            return self.M.get(self.M.get(self._fetch()))
-
-        if addr_mode == AddressingModes.REGISTER:
-            return self.R[register_num]
-
-        if addr_mode == AddressingModes.IND_REG:
-            return self.M.get(self.R[register_num])
-
-        if addr_mode == AddressingModes.INDEXED:
-            return self.M.get(self._fetch() + self.R[register_num])
-
-        raise UnknownInstruction()
+        return Operand(addr_mode, register_num, constant)
 
     def _execute(self, insn):
 
@@ -180,19 +164,44 @@ class Orga1Machine(object):
         fn = self.__class__.__dict__.get('_' + insn.__class__.__name__.lower())
 
         if got(BinaryInsn):
-            return fn(self, insn.dest, insn.src)
+            return fn(self, self._cast_operand(insn.dest_op), self._cast_operand(insn.src_op))
 
         if got(UnaryDestInsn):
-            return fn(self, insn.dest)
+            return fn(self, self._cast_operand(insn.dest_op))
 
         if got(UnarySrcInsn):
-            return fn(self, insn.src)
+            return fn(self, self._cast_operand(insn.src_op))
 
         if got(NullaryInsn):
             return fn(self)
 
         if got(CondJmpInsn):
             return fn(self, insn.shift)
+
+    def _cast_operand(self, op):
+        am = op.addr_mode
+        rn = op.register
+        k  = op.constant
+
+        if am == AddressingModes.IMMEDIATE:
+            return k
+
+        if am == AddressingModes.DIRECT:
+            return self.M.get(k)
+
+        if am == AddressingModes.INDIRECT:
+            return self.M.get(self.M.get(k))
+
+        if am == AddressingModes.REGISTER:
+            return self.R[rn]
+
+        if am == AddressingModes.IND_REG:
+            return self.M.get(self.R[rn])
+
+        if am == AddressingModes.INDEXED:
+            return self.M.get(k + self.R[rn])
+
+        raise UnknownInstruction()
 
     def _mov(self, dest, src):
         dest.set(src)
