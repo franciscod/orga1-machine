@@ -2,12 +2,13 @@
 
 from storage import Word, Memory, Register
 from insns import (AddressingModes, UnknownInstruction, InvalidInstruction,
-    BinaryInsn, UnaryDestInsn, UnarySrcInsn, NullaryInsn, CondJmpInsn,
-    Mov, Add, Sub,
-    And, Or, Cmp,
-    Addc, Neg, Not,
-    Jmp, Call, Ret,
-    )
+    BinaryInsn, UnaryDestInsn, UnarySrcInsn, NullaryInsn, UnknownCondJmp, CondJmpInsn,
+    Mov, Add, Sub, And, Or, Cmp, Addc,
+    Neg, Not,
+    Jmp, Call,
+    Ret,
+    Je, Jne, Jle, Jg, Jl, Jge, Jleu, Jgu, Jcs, Jneg, Jvs,
+)
 
 class Orga1Machine(object):
     WORD_SIZE = 16
@@ -32,7 +33,21 @@ class Orga1Machine(object):
 
         0b1100: Ret,
 
-        0b1111: CondJmpInsn,
+        0b1111: UnknownCondJmp,
+    }
+
+    CONDJMPINSNS = {
+        0b0001: Je,
+        0b1001: Jne,
+        0b0010: Jle,
+        0b1010: Jg,
+        0b0011: Jl,
+        0b1011: Jge,
+        0b0100: Jleu,
+        0b1100: Jgu,
+        0b0101: Jcs,
+        0b0110: Jneg,
+        0b0111: Jvs,
     }
 
     def __init__(self):
@@ -78,7 +93,7 @@ class Orga1Machine(object):
 
         if got(BinaryInsn):
             dam, dest = self._get_dest_operand(word)
-            sam, src = self._get_src_operand(word)
+            _, src = self._get_src_operand(word)
 
             if dam == AddressingModes.IMMEDIATE and not got(Cmp):
                 raise InvalidInstruction(word)
@@ -100,7 +115,7 @@ class Orga1Machine(object):
             if word.get_bits(6, 4) != 0:
                 raise InvalidInstruction(word)
 
-            sam, src = self._get_src_operand(word)
+            _, src = self._get_src_operand(word)
 
             return insn(src)
 
@@ -110,7 +125,20 @@ class Orga1Machine(object):
 
             return insn()
 
-        raise UnknownInstruction()
+        if got(UnknownCondJmp):
+            return self._decode_condjmp(word)
+
+        raise UnknownInstruction(word)
+
+    def _decode_condjmp(self, word):
+        subopcode = word.get_bits(4, 4)
+
+        if not subopcode in self.CONDJMPINSNS:
+            raise InvalidInstruction(word)
+
+        insn = self.CONDJMPINSNS[subopcode]
+
+        return insn(Word(word.get_bits(8, 8), 8).extend_sign(16))
 
     def _get_dest_operand(self, word):
         return self._get_abs_operand(word, 0)
@@ -161,7 +189,10 @@ class Orga1Machine(object):
             return fn(self, insn.src)
 
         if got(NullaryInsn):
-            return fn(self  )
+            return fn(self)
+
+        if got(CondJmpInsn):
+            return fn(self, insn.shift)
 
     def _mov(self, dest, src):
         dest.set(src)
@@ -226,6 +257,53 @@ class Orga1Machine(object):
     def _ret(self):
         self.SP.set(self.M.get(int(self.SP) + 1))
         self.PC.set(self.SP)
+
+    def _je(self, shift):
+        if self.Z:
+            self.__jrel(shift)
+
+    def _jne(self, shift):
+        if not self.Z:
+            self.__jrel(shift)
+
+    def _jle(self, shift):
+        if self.Z or (self.N ^ self.V):
+            self.__jrel(shift)
+
+    def _jg(self, shift):
+        if not (self.Z or (self.N ^ self.V)):
+            self.__jrel(shift)
+
+    def _jl(self, shift):
+        if self.N ^ self.V:
+            self.__jrel(shift)
+
+    def _jge(self, shift):
+        if not (self.N ^ self.V):
+            self.__jrel(shift)
+
+    def _jleu(self, shift):
+        if self.C or self.Z:
+            self.__jrel(shift)
+
+    def _jgu(self, shift):
+        if not (self.C or self.Z):
+            self.__jrel(shift)
+
+    def _jcs(self, shift):
+        if self.C:
+            self.__jrel(shift)
+
+    def _jneg(self, shift):
+        if self.N:
+            self.__jrel(shift)
+
+    def _jvs(self, shift):
+        if self.V:
+            self.__jrel(shift)
+
+    def __jrel(self, shift):
+        self.PC.set(int(self.PC) + int(shift))
 
     def _update_flags(self, word):
         self.Z = int(word) == 0

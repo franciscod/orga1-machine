@@ -25,7 +25,15 @@ class Word(object):
     def is_signed(self):
         return bool(self._value & (2 ** (self._sz - 1)))
 
-    def __int__(self):
+    def extend_sign(self, newsz):
+        pad = 0
+
+        if self.is_signed():
+            pad = -1 << self._sz
+
+        return Word(pad | self._value, newsz) # hehehe wordpad hehehehe
+
+    def __int__(self): # TODO: try to remove this
         return self._value
 
     def __str__(self):

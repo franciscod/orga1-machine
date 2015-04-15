@@ -6,12 +6,13 @@ http://www.dc.uba.ar/materias/oc1/2015/c1
 ## anda?
 	python -i sim.py etc/p1.hex
 
-	# fetch, decode, exec
-	>>> maq.step()
-
 	# corre y corre
 	>>> maq.run()
 
+	python -i sim.py etc/do.hex
+
+	# debugger primitivo
+	>>> maq.step(); maq.R
 ---
 
 ```

@@ -28,26 +28,29 @@ class UnarySrcInsn(Instruction):
     def __init__(self, src):
         self.src = src
 
-class NullaryInsn(Instruction): pass
-class CondJmpInsn(Instruction): pass
+class CondJmpInsn(Instruction):
+    def __init__(self, shift):
+        self.shift = shift
+
+class NullaryInsn(Instruction):    pass
+class UnknownCondJmp(Instruction): pass
 
 class Mov(BinaryInsn):    pass
 class Add(BinaryInsn):    pass
 class Sub(BinaryInsn):    pass
 class And(BinaryInsn):    pass
-
-class Call(UnarySrcInsn): pass
-class Jmp(UnarySrcInsn):  pass
-
-class Not(UnaryDestInsn): pass
-class Neg(UnaryDestInsn): pass
-
-class Addc(BinaryInsn):   pass
-class Cmp(BinaryInsn):    pass
 class Or(BinaryInsn):     pass
+class Cmp(BinaryInsn):    pass
+class Addc(BinaryInsn):   pass
+
+class Neg(UnaryDestInsn): pass
+class Not(UnaryDestInsn): pass
+
+class Jmp(UnarySrcInsn):  pass
+class Call(UnarySrcInsn): pass
+
 class Ret(NullaryInsn):   pass
 
-# ninguna de estas altera flags
 class Je(CondJmpInsn):    pass
 class Jne(CondJmpInsn):   pass
 class Jle(CondJmpInsn):   pass
