@@ -69,7 +69,7 @@ class Orga1Machine(object):
         opcode = word.get_bits(4)
 
         if not opcode in self.INSNS:
-            raise InvalidInstruction()
+            raise InvalidInstruction(word)
 
         insn = self.INSNS[opcode]
 
@@ -77,40 +77,50 @@ class Orga1Machine(object):
             return issubclass(insn, superclass)
 
         if got(BinaryInsn):
-            dest = self._get_dest_operand(word)
-            src = self._get_src_operand(word)
+            dam, dest = self._get_dest_operand(word)
+            sam, src = self._get_src_operand(word)
+
+            if dam == AddressingModes.IMMEDIATE and not got(Cmp):
+                raise InvalidInstruction(word)
+
             return insn(dest, src)
 
         if got(UnaryDestInsn):
             if word.get_bits(6, 10) != 0:
-                raise InvalidInstruction()
+                raise InvalidInstruction(word)
 
-            dest = self._get_dest_operand(word)
+            dam, dest = self._get_dest_operand(word)
+
+            if dam == AddressingModes.IMMEDIATE:
+                raise InvalidInstruction(word)
 
             return insn(dest)
 
         if got(UnarySrcInsn):
             if word.get_bits(6, 4) != 0:
-                raise InvalidInstruction()
+                raise InvalidInstruction(word)
 
-            src = dest = self._get_src_operand(word)
+            sam, src = self._get_src_operand(word)
 
             return insn(src)
 
         if got(NullaryInsn):
             if word.get_bits(12, 4) != 0:
-                raise InvalidInstruction()
+                raise InvalidInstruction(word)
 
             return insn()
 
-        # should be unreachable anyway
         raise UnknownInstruction()
 
     def _get_dest_operand(self, word):
-        return self._get_operand(word.get_bits(3, 4), word.get_bits(3, 7))
+        return self._get_abs_operand(word, 0)
 
     def _get_src_operand(self, word):
-        return self._get_operand(word.get_bits(3, 10), word.get_bits(3, 13))
+        return self._get_abs_operand(word, 6)
+
+    def _get_abs_operand(self, word, o):
+        addr_mode = word.get_bits(3, o + 4)
+        return addr_mode, self._get_operand(addr_mode, word.get_bits(3, o + 7))
 
     def _get_operand(self, addr_mode, register_num=None):
 
@@ -132,88 +142,91 @@ class Orga1Machine(object):
         if addr_mode == AddressingModes.INDEXED:
             return self.M.get(self._fetch() + self.R[register_num])
 
-        raise InvalidInstruction()
+        raise UnknownInstruction()
 
     def _execute(self, insn):
 
         def got(superclass):
             return isinstance(insn, superclass)
 
+        fn = self.__class__.__dict__.get('_' + insn.__class__.__name__.lower())
 
-        if got(Mov):
-            insn.dest.set(insn.src)
+        if got(BinaryInsn):
+            return fn(self, insn.dest, insn.src)
 
-        if got(Add):
-            dest_signed = insn.dest.is_signed()
-            src_signed = insn.src.is_signed()
+        if got(UnaryDestInsn):
+            return fn(self, insn.dest)
 
-            res = int(insn.dest) + int(insn.src)
-            res_signed = Word(res, self.WORD_SIZE).is_signed()
+        if got(UnarySrcInsn):
+            return fn(self, insn.src)
 
-            self.Z = int(res % (2 ** self.WORD_SIZE) == 0)
-            self.C = int(res & (2 ** (self.WORD_SIZE + 1)) != 0)
-            self.V = int((not (dest_signed == src_signed)) and (res_signed != dest_signed))
-            self.N = res_signed
+        if got(NullaryInsn):
+            return fn(self  )
 
-            insn.dest.set(res)
+    def _mov(self, dest, src):
+        dest.set(src)
 
-        if got(Jmp):
-            self.PC.set(insn.src)
-"""
-            # sub
-            def execute(self):
-                self.dest[MEM][self.dest[ADDR]] = self.dest[VAL] - self.orig[VAL]
-                # faltan flags
+    def _add(self, dest, src):
+        self._addc(dest, src, clear_carry=True)
 
-        #and
-            def execute(self):
-                self.dest[MEM][self.dest[ADDR]] = self.dest[VAL] & self.orig[VAL]
-                # faltan flags
+    def _sub(self, dest, src):
+        self._neg(src)
+        self._addc(dest, src, clear_carry=True)
 
+    def _and(self, dest, src):
+        dest.set(int(dest) & int(src))
+        self._update_flags(dest)
 
-            #or
-            def execute(self):
-                self.dest[MEM][self.dest[ADDR]] = self.dest[VAL] | self.orig[VAL]
-                # faltan flags
+    def _or(self, dest, src):
+        dest.set(int(dest) | int(src))
+        self._update_flags(dest)
 
+    def _cmp(self, dest, src):
+        self._neg(src)
+        self._addc(dest, src, clear_carry=True, only_flags=True)
 
-            #cmp
-            def execute(self):
-                # faltan flags
-                pass
+    def _addc(self, dest, src, clear_carry=False, only_flags=False):
+        if clear_carry:
+            self.C = 0
 
+        dest_signed = dest.is_signed()
+        src_signed = src.is_signed()
 
-            #addc
-            def execute(self):
-                self.dest[MEM][self.dest[ADDR]] = self.dest[VAL] + self.orig[VAL] + self.orga.C
-                # faltan flags
+        res = int(dest) + int(src) + self.C
+        res_w = Word(res, self.WORD_SIZE)
+        res_signed = res_w.is_signed()
 
 
-            #neg
-            def execute(self):
-                self.addr[MEM][self.addr[ADDR]] = 0 - self.addr[VAL]
-                # faltan flags
+        self.C = int(res & (2 ** (self.WORD_SIZE + 1)) != 0)
+        self.V = int((not (dest_signed == src_signed)) and (res_signed != dest_signed))
 
+        self._update_flags(res_w)
 
-            #not
-            def execute(self):
-                self.addr[MEM][self.addr[ADDR]] = 0xFFFF ^ self.addr[VAL]
-                # faltan flags
+        if only_flags:
+            return
 
+        dest.set(res)
 
+    def _neg(self, dest):
+        dest.set(- int(dest))
+        self._update_flags(dest)
 
-            #call
-            def execute(self):
-                self.orga.M[self.orga.SP] = self.orga.PC
-                self.orga.SP -= 1
-                self.orga.SP %= 0xFFFF
-                self.orga.PC = self.addr[VAL]
-                # no altera flags
+    def _not(self, dest):
+        dest.set(dest ^ (2 ** self.WORD_SIZE - 1))
+        self._update_flags(dest)
 
-            #ret
-            def execute(self):
-                self.orga.SP += 1
-                self.orga.SP %= 0xFFFF
-                self.orga.PC = self.orga.SP
-                # no altera flags
-        """
+    def _jmp(self, src):
+        self.PC.set(src)
+
+    def _call(self, src):
+        self.M.get(self.SP).set(self.PC)
+        self.SP.set(int(self.SP) - 1)
+        self.PC.set(src)
+
+    def _ret(self):
+        self.SP.set(self.M.get(int(self.SP) + 1))
+        self.PC.set(self.SP)
+
+    def _update_flags(self, word):
+        self.Z = int(word) == 0
+        self.N = word.is_signed()
