@@ -3,6 +3,11 @@ acercando la máquina de orga 1 a los bits
 
 http://www.dc.uba.ar/materias/oc1/2015/c1
 
+## anda?
+	python sim.py etc/p1.hex
+
+	>>> maq.step()
+
 ---
 
 ```
