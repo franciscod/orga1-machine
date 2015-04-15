@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# TODO: I/O
+# TODO:
+# - I/O
+# - Tag, .tagged
 
 class Word(object):
     def __init__(self, val, sz):

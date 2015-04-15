@@ -4,6 +4,14 @@ acercando la máquina de orga 1 a los bits
 http://www.dc.uba.ar/materias/oc1/2015/c1
 
 ## anda?
+	$ python disasm.py etc/p1.hex
+	0000: MOV R1, [[0006]]
+	0002: ADD [R1], 6000
+	0004: JMP 0000
+	0006: DW 0007
+	0007: DW 0004
+
+
 	$ python -i sim.py etc/p2.hex
 	ready
 	>>> maq.run()
@@ -12,6 +20,7 @@ http://www.dc.uba.ar/materias/oc1/2015/c1
 	executing SUB R6, R7
 	executing RET
 	end of execution
+
 
 	python -i sim.py etc/do.hex
 
