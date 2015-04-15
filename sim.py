@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # TODO: modelo para una pos de memoria, con get y set
 # TODO: aritmetica de precision fija
 
@@ -30,7 +32,7 @@ class Op(object):
 
 class ValidOp(Op):
     def __init__(self, orga, word):
-        super().__init__()
+        super(ValidOp, self).__init__()
         self.orga = orga
         self.word = word
 
@@ -76,34 +78,34 @@ VAL  = 2 # --------------/
 # type1
 class BinaryOp(ValidOp):
     def __init__(self, orga, word):
-        super().__init__(orga, word)
+        super(BinaryOp, self).__init__(orga, word)
         self.dest = self._read_addr_value((self.word >> 6) & 0b111111)
         self.orig = self._read_addr_value(self.word & 0b111111)
 
 # type2a
 class UnaryDestOp(ValidOp):
     def __init__(self, orga, word):
-        super().__init__(orga, word)
+        super(UnaryDestOp, self).__init__(orga, word)
         self.addr = self._read_addr_value((self.word >> 6) & 0b111111)
         assert ((self.word & 0b111111) == 0)
 
 # type2b
 class UnaryOrigOp(ValidOp):
     def __init__(self, orga, word):
-        super().__init__(orga, word)
+        super(UnaryOrigOp, self).__init__(orga, word)
         self.addr = self._read_addr_value(self.word & 0b111111)
         assert (((self.word >> 6) & 0b111111) == 0)
 
 # type3
 class AryOp(ValidOp):
     def __init__(self, orga, word):
-        super().__init__(orga, word)
+        super(AryOp, self).__init__(orga, word)
         assert ((self.word & 0b111111111111) == 0)
 
 # type4
 class CondJmpOp(ValidOp):
     def __init__(self, orga, word):
-        super().__init__(orga, word)
+        super(CondJmpOp, self).__init__(orga, word)
 
 class OpMov(BinaryOp):
     def execute(self):
