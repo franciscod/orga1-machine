@@ -74,30 +74,35 @@ def parse(lines):
 
         tokens.append(token)
 
-    wc = 0
+    pc = 0
     for token in tokens:
+        pc += token_wc(token)
         for o in token.opns:
             if o.constant in tags:
-                o.constant = str(tags[o.constant])
+                o.constant = tags[o.constant]
 
             if isinstance(o.constant, str):
                 o.constant = int(o.constant, 16)
-                if isinstance(token, CondJmpInsn):
-                    o.constant = o.constant - (wc + 1)
 
-        wc += token_wc(token)
+            if isinstance(token, CondJmpInsn):
+                o.constant = o.constant - pc
+
     return tokens
 
 def token_wc(token):
-    wc = 0
 
-    if not isinstance(token, Dw):
-        wc += 1 # token
 
+    wc = 1 # token
     for o in token.opns:
         if o.addr_mode in ( AddressingModes.IMMEDIATE,
                             AddressingModes.INDIRECT,
                             AddressingModes.DIRECT,
                             AddressingModes.INDEXED, ):
             wc += 1 # constant operand
+
+    if isinstance(token, CondJmpInsn):
+        wc = 1
+    if isinstance(token, Dw):
+        wc = 1
+
     return wc
