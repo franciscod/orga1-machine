@@ -246,11 +246,11 @@ class Orga1Machine(object):
 
     def _and(self, dest, src):
         dest.set(int(dest) & int(src))
-        self._update_flags(dest)
+        self._update_flags(dest, True)
 
     def _or(self, dest, src):
         dest.set(int(dest) | int(src))
-        self._update_flags(dest)
+        self._update_flags(dest, True)
 
     def _cmp(self, dest, src):
         self._neg(src)
@@ -284,7 +284,7 @@ class Orga1Machine(object):
 
     def _not(self, dest):
         dest.set(dest ^ (2 ** self.WORD_SIZE - 1))
-        self._update_flags(dest)
+        self._update_flags(dest, True)
 
     def _jmp(self, src):
         self.PC.set(src)
@@ -345,6 +345,10 @@ class Orga1Machine(object):
     def __jrel(self, shift):
         self.PC.set(int(self.PC) + int(shift))
 
-    def _update_flags(self, word):
-        self.Z = int(word) == 0
-        self.N = word.is_signed()
+    def _update_flags(self, word, clear_cv=False):
+        self.Z = int(int(word) == 0)
+        self.N = int(word.is_signed())
+
+        if clear_cv:
+            self.C = 0
+            self.V = 0
