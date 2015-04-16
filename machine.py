@@ -267,9 +267,8 @@ class Orga1Machine(object):
         res_w = Word(res, self.WORD_SIZE)
         res_signed = res_w.is_signed()
 
-
         self.C = int(res & (2 ** (self.WORD_SIZE + 1)) != 0)
-        self.V = int((not (dest_signed == src_signed)) and (res_signed != dest_signed))
+        self.V = int(((dest_signed == src_signed)) and (res_signed != dest_signed))
 
         self._update_flags(res_w)
 
