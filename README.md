@@ -40,11 +40,3 @@ http://www.dc.uba.ar/materias/oc1/2015/c1
 
 ### vuela etiquetas
 	python disasm.py <(python asm.py etc/p1.asm)
----
-
-```
-things you probably haven't realised you need yet: an ABI/calling convention; an exception model
-"what happens when you dereference a NULL pointer?"
-"what happens when you execute the instruction for a system call?"
-"what happens if you try to execute something that's not a valid instruction?"
-```
