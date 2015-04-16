@@ -22,7 +22,8 @@ if __name__ == '__main__':
 
     while maq.PC.get() < i:
         try:
-            print ("%04x: " % maq.PC.get(), end='')
+            # TODO: make this optional
+            # print ("%04x: " % maq.PC.get(), end='')
             w = maq._fetch()
             insn = maq._decode(w)
             print (insn)

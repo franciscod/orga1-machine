@@ -12,8 +12,16 @@ class AddressingModes(object):
     IND_REG   = 0b110
     INDEXED   = 0b111
 
+class Constant(object):
+
+    def __init__(self, val):
+        self.val = val
+
+    def asm(self):
+        return self.val
+
 class Operand(object):
-    def __init__(self, addr_mode, register=None, constant=None):
+    def __init__(self, addr_mode, register=0, constant=None):
         self.addr_mode = addr_mode
         self.register = register
         self.constant = constant
@@ -37,63 +45,141 @@ class Operand(object):
         if self.addr_mode == AddressingModes.INDEXED:
             return '[R%d + %s]' % (self.register, self.constant)
 
+    def __repr__(self):
+        return '<Operand %s>' % self
+
+    def asm(self):
+        return self.addr_mode << 3 | self.register
+
 class Instruction(object):
+    opcode = 0
     def __str__(self):
         return "%s" % self.__class__.__name__.upper()
+    def __repr__(self):
+        return '<Insn %s>' % self
 
 class BinaryInsn(Instruction):
+    operands = 2
+
     def __init__(self, dest_op, src_op):
         self.dest_op = dest_op
         self.src_op  = src_op
+        self.opns = [self.dest_op, self.src_op]
 
     def __str__(self):
         return "%s %s, %s" % (self.__class__.__name__.upper(), self.dest_op, self.src_op)
 
+    def asm(self):
+        bs = self.opcode << 12 | self.dest_op.asm() << 6 | self.src_op.asm()
+
+        if self.dest_op.constant is not None:
+            bs <<= 16
+            bs |= self.dest_op.constant
+        if self.src_op.constant is not None:
+            bs <<= 16
+            bs |= self.src_op.constant
+
+        return bs
+
 class UnaryDestInsn(Instruction):
+    operands = 1
+
     def __init__(self, dest_op):
         self.dest_op = dest_op
+        self.opns = [self.dest_op]
     def __str__(self):
         return "%s %s" % (self.__class__.__name__.upper(), self.dest_op)
 
+    def asm(self):
+        bs = self.opcode << 12 | self.dest_op.asm() << 6
+
+        if self.dest_op.constant is not None:
+            bs <<= 16
+            bs |= self.dest_op.constant
+
+        return bs
+
 class UnarySrcInsn(Instruction):
+    operands = 1
+
     def __init__(self, src_op):
         self.src_op = src_op
+        self.opns = [self.src_op]
     def __str__(self):
         return "%s %s" % (self.__class__.__name__.upper(), self.src_op)
 
+    def asm(self):
+
+        bs = self.opcode << 12 | self.src_op.asm()
+
+        if self.src_op.constant is not None:
+            bs <<= 16
+            bs |= self.src_op.constant
+
+        return bs
+
 class CondJmpInsn(Instruction):
+    operands = 1
+
     def __init__(self, shift):
         self.shift = shift
+        self.opns = [self.shift]
     def __str__(self):
         return "%s %s" % (self.__class__.__name__.upper(), self.shift)
 
-class NullaryInsn(Instruction):    pass
-class UnknownCondJmp(Instruction): pass
+    def asm(self):
+        return 0b1111 << 12 | self.opcode << 8 | (self.shift.constant & 0b11111111)
 
-class Mov(BinaryInsn):    pass
-class Add(BinaryInsn):    pass
-class Sub(BinaryInsn):    pass
-class And(BinaryInsn):    pass
-class Or(BinaryInsn):     pass
-class Cmp(BinaryInsn):    pass
-class Addc(BinaryInsn):   pass
+class NullaryInsn(Instruction):
+    operands = 0
 
-class Neg(UnaryDestInsn): pass
-class Not(UnaryDestInsn): pass
+    def __init__(self):
+        self.opns = []
+        
+    def asm(self):
+        return self.opcode << 12
 
-class Jmp(UnarySrcInsn):  pass
-class Call(UnarySrcInsn): pass
+class Directive(Instruction): pass
+class UnaryDtv(Directive):
+    operands = 1
 
-class Ret(NullaryInsn):   pass
+    def __init__(self, arg):
+        self.arg = arg
+        self.opns = [self.arg]
 
-class Je(CondJmpInsn):    pass
-class Jne(CondJmpInsn):   pass
-class Jle(CondJmpInsn):   pass
-class Jg(CondJmpInsn):    pass
-class Jl(CondJmpInsn):    pass
-class Jge(CondJmpInsn):   pass
-class Jleu(CondJmpInsn):  pass
-class Jgu(CondJmpInsn):   pass
-class Jcs(CondJmpInsn):   pass
-class Jneg(CondJmpInsn):  pass
-class Jvs(CondJmpInsn):   pass
+    def __str__(self):
+        return "%s %s" % (self.__class__.__name__.upper(), self.arg)
+
+class Mov(BinaryInsn):    opcode = 0b0001
+class Add(BinaryInsn):    opcode = 0b0010
+class Sub(BinaryInsn):    opcode = 0b0011
+class And(BinaryInsn):    opcode = 0b0100
+class Or(BinaryInsn):     opcode = 0b0101
+class Cmp(BinaryInsn):    opcode = 0b0110
+class Addc(BinaryInsn):   opcode = 0b1101
+
+class Neg(UnaryDestInsn): opcode = 0b1000
+class Not(UnaryDestInsn): opcode = 0b1001
+
+class Jmp(UnarySrcInsn):  opcode = 0b1010
+class Call(UnarySrcInsn): opcode = 0b1011
+
+class Ret(NullaryInsn):   opcode = 0b1100
+
+class UnknownCondJmp(Instruction): opcode = 0b1111
+
+class Je(CondJmpInsn):    opcode = 0b0001
+class Jne(CondJmpInsn):   opcode = 0b1001
+class Jle(CondJmpInsn):   opcode = 0b0010
+class Jg(CondJmpInsn):    opcode = 0b1010
+class Jl(CondJmpInsn):    opcode = 0b0011
+class Jge(CondJmpInsn):   opcode = 0b1011
+class Jleu(CondJmpInsn):  opcode = 0b0100
+class Jgu(CondJmpInsn):   opcode = 0b1100
+class Jcs(CondJmpInsn):   opcode = 0b0101
+class Jneg(CondJmpInsn):  opcode = 0b0110
+class Jvs(CondJmpInsn):   opcode = 0b0111
+
+class Dw(UnaryDtv):
+    def asm(self):
+        return self.arg.constant

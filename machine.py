@@ -16,39 +16,12 @@ class Orga1Machine(object):
     REGISTER_COUNT = 8
     STACK_SIZE = 0x10
 
-    INSNS = {
-        0b0001: Mov,
-        0b0010: Add,
-        0b0011: Sub,
-        0b0100: And,
-        0b0101: Or,
-        0b0110: Cmp,
-        0b1101: Addc,
+    INSNS = { insn.opcode: insn for insn in (
+              Mov, Add, Sub, And, Or, Cmp, Addc, Neg, Not, Jmp, Call, Ret )}
 
-        0b1000: Neg,
-        0b1001: Not,
+    CONDJMPINSNS = { insn.opcode: insn for insn in (
+                    Je, Jne, Jle, Jg, Jl, Jge, Jleu, Jgu, Jcs, Jneg, Jvs )}
 
-        0b1010: Jmp,
-        0b1011: Call,
-
-        0b1100: Ret,
-
-        0b1111: UnknownCondJmp,
-    }
-
-    CONDJMPINSNS = {
-        0b0001: Je,
-        0b1001: Jne,
-        0b0010: Jle,
-        0b1010: Jg,
-        0b0011: Jl,
-        0b1011: Jge,
-        0b0100: Jleu,
-        0b1100: Jgu,
-        0b0101: Jcs,
-        0b0110: Jneg,
-        0b0111: Jvs,
-    }
 
     def __init__(self):
         """Algo que tiene la máquina de Orga, que no tiene la de Intel,
