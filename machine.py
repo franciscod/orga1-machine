@@ -74,7 +74,7 @@ class Orga1Machine(object):
     STACK_SIZE = 0x10
 
     INSNS = { insn.opcode: insn for insn in (
-              Mov, Add, Sub, And, Or, Cmp, Addc, Neg, Not, Jmp, Call, Ret )}
+              Mov, Add, Sub, And, Or, Cmp, Addc, Neg, Not, Jmp, Call, Ret, UnknownCondJmp )}
 
     CONDJMPINSNS = { insn.opcode: insn for insn in (
                     Je, Jne, Jle, Jg, Jl, Jge, Jleu, Jgu, Jcs, Jneg, Jvs )}
