@@ -243,6 +243,7 @@ class Orga1Machine(object):
     def _sub(self, dest, src):
         self._neg(src)
         self._addc(dest, src, clear_carry=True)
+        self.C ^= 1
 
     def _and(self, dest, src):
         dest.set(int(dest) & int(src))
