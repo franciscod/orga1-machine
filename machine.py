@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
+# TODO: memory mapped I/O
 
-from storage import Word, Memory, Register
 from insns import (AddressingModes, Operand, UnknownInstruction, InvalidInstruction,
     BinaryInsn, UnaryDestInsn, UnarySrcInsn, NullaryInsn, UnknownCondJmp, CondJmpInsn,
     Mov, Add, Sub, And, Or, Cmp, Addc,
@@ -9,6 +9,63 @@ from insns import (AddressingModes, Operand, UnknownInstruction, InvalidInstruct
     Ret,
     Je, Jne, Jle, Jg, Jl, Jge, Jleu, Jgu, Jcs, Jneg, Jvs,
 )
+
+class Word(object):
+    def __init__(self, val, sz):
+        self._sz = sz
+        self._sz_h = sz / 4
+        self.set(val)
+
+    def set(self, val):
+        self._value = int(val) % (2 ** self._sz)
+
+    def get(self):
+        return self._value
+
+    def get_bits(self, count=None, skip=0):
+        if count is None:
+            count = self._sz
+
+        end = max(min(self._sz - skip - count, 2 ** self._sz - 1), 0)
+
+        return (self._value >> end) & (2 ** count - 1)
+
+    def is_signed(self):
+        return bool(self._value & (2 ** (self._sz - 1)))
+
+    def extend_sign(self, newsz):
+        pad = 0
+
+        if self.is_signed():
+            pad = -1 << self._sz
+
+        return Word(pad | self._value, newsz) # hehehe wordpad hehehehe
+
+    def __int__(self): # TODO: try to remove this
+        return self._value
+
+    def __str__(self):
+        return ("%%0%dx" % self._sz_h) % self._value
+
+    def __repr__(self):
+        return ("<%s: %s>") % (self.__class__.__name__, str(self))
+
+
+class Register(Word): pass
+
+
+class Memory(object):
+    def __init__(self, size, wordsize):
+        self._size = size
+        self._wsz  = wordsize
+        self._data = [Word(0, sz=self._wsz) for _ in range(size)]
+
+    def set(self, addr, value):
+        self._data[addr % self._size] = Word(value, sz=self._wsz)
+
+    def get(self, addr):
+        return self._data[int(addr) % self._size]
+
 
 class Orga1Machine(object):
     WORD_SIZE = 16
@@ -29,8 +86,9 @@ class Orga1Machine(object):
         self.R = [Register(0, self.WORD_SIZE) for _ in range(self.REGISTER_COUNT)]
         self.M = Memory(self.ADDR_SPACE, self.WORD_SIZE)
 
-        self.PC = Register(0, 16)
-        self.SP = Register(-self.STACK_SIZE, 16)
+        self.PC = Register(0, self.WORD_SIZE)
+        self.SP = Register(-self.STACK_SIZE, self.WORD_SIZE)
+
         self.Z = 0
         self.C = 0
         self.N = 0

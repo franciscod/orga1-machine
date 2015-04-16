@@ -1,4 +1,6 @@
-from insns import (Operand, AddressingModes, Directive, Constant, CondJmpInsn,
+# -*- coding: utf-8 -*-
+
+from insns import (Operand, AddressingModes, CondJmpInsn,
                     Mov, Add, Sub, And, Or, Cmp, Addc, Neg, Not, Jmp, Call, Ret,
                     Je, Jne, Jle, Jg, Jl, Jge, Jleu, Jgu, Jcs, Jneg, Jvs, Dw)
 
@@ -35,7 +37,7 @@ def lex(s):
     return tag, insn
 
 def parse_opn(o):
-    # TODO: indexed
+    # TODO: indexed addressing mode
     if o == '':
         return None
 
@@ -99,10 +101,3 @@ def token_wc(token):
                             AddressingModes.INDEXED, ):
             wc += 1 # constant operand
     return wc
-
-if __name__ == '__main__':
-    import sys
-    tokens = parse(open(sys.argv[1]).readlines())
-    for token in tokens:
-        print ('%04x' % token.asm(), end='')
-    print ('')
