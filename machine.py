@@ -241,8 +241,9 @@ class Orga1Machine(object):
         self._addc(dest, src, clear_carry=True)
 
     def _sub(self, dest, src):
-        self._neg(src)
-        self._addc(dest, src, clear_carry=True)
+        inv = Word(src, 16)
+        self._neg(inv)
+        self._addc(dest, inv, clear_carry=True)
         self.C ^= 1
 
     def _and(self, dest, src):
@@ -268,7 +269,7 @@ class Orga1Machine(object):
         res_w = Word(res, self.WORD_SIZE)
         res_signed = res_w.is_signed()
 
-        self.C = int(res & (2 ** (self.WORD_SIZE + 1)) != 0)
+        self.C = (res >> 4) & 1
         self.V = int(((dest_signed == src_signed)) and (res_signed != dest_signed))
 
         self._update_flags(res_w)
