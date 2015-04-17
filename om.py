@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+# TODO: figure out why tallerC1p3.asm doesn't end at DEAD
+
 import sys
 from insns import InvalidInstruction
 from machine import Orga1Machine

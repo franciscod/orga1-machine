@@ -230,7 +230,7 @@ class Orga1Machine(object):
             return self.M.get(self.R[rn])
 
         if am == AddressingModes.INDEXED:
-            return self.M.get(k + self.R[rn])
+            return self.M.get(k.get() + self.R[rn].get())
 
         raise UnknownInstruction()
 

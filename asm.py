@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# TODO: load and set pc at an offset
 
 from insns import (Operand, AddressingModes, CondJmpInsn,
                     Mov, Add, Sub, And, Or, Cmp, Addc, Neg, Not, Jmp, Call, Ret,
@@ -37,7 +38,6 @@ def lex(s):
     return tag, insn
 
 def parse_opn(o):
-    # TODO: indexed addressing mode
     if o == '':
         return None
 
@@ -50,6 +50,11 @@ def parse_opn(o):
 
     if o[:1] == '[':
         o = o.replace(' ', '').replace('[', '').replace(']', '')
+
+        if '+' in o:
+            i0, i1 = o.split('+')
+            return Operand(AddressingModes.INDEXED, register=int(i0[1]), constant=i1)
+
         if o[0].upper() == 'R' and len(o) == 2 and '0' <= o[1] <= '7':
             return Operand(AddressingModes.IND_REG, register=int(o[1]))
         return Operand(AddressingModes.DIRECT, constant=o)
